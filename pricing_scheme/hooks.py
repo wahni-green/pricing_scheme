@@ -1,10 +1,25 @@
 app_name = "pricing_scheme"
 app_title = "Pricing Scheme"
-app_publisher = "Wahni IT Solutions Pvt Ltd"
-app_description = "Superset of ERPNext\'s Pricing Rule"
-app_email = "info@wahni.com"
+app_publisher = "Wahni IT Solutions"
+app_description = "Supercharged pricing rule for ERPNext"
+app_email = "danyrt@wahni.com"
 app_license = "agpl-3.0"
+
+# Apps
+# ------------------
+
 # required_apps = []
+
+# Each item in the list will be shown as an app in the apps page
+# add_to_apps_screen = [
+# 	{
+# 		"name": "pricing_scheme",
+# 		"logo": "/assets/pricing_scheme/logo.png",
+# 		"title": "Pricing Scheme",
+# 		"route": "/pricing_scheme",
+# 		"has_permission": "pricing_scheme.api.permission.has_app_permission"
+# 	}
+# ]
 
 # Includes in <head>
 # ------------------
@@ -54,6 +69,9 @@ app_license = "agpl-3.0"
 
 # automatically create page for each record of this doctype
 # website_generators = ["Web Page"]
+
+# automatically load and sync documents of this doctype from downstream apps
+# importable_doctypes = [doctype_1]
 
 # Jinja
 # ----------
@@ -108,14 +126,6 @@ app_license = "agpl-3.0"
 #
 # has_permission = {
 # 	"Event": "frappe.desk.doctype.event.event.has_permission",
-# }
-
-# DocType Class
-# ---------------
-# Override standard doctype classes
-
-# override_doctype_class = {
-# 	"ToDo": "custom_app.overrides.CustomToDo"
 # }
 
 # Document Events

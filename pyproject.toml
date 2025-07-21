@@ -1,9 +1,9 @@
 [project]
 name = "pricing_scheme"
 authors = [
-    { name = "Wahni IT Solutions Pvt Ltd", email = "info@wahni.com"}
+    { name = "Wahni IT Solutions", email = "danyrt@wahni.com"}
 ]
-description = "Superset of ERPNext's Pricing Rule"
+description = "Supercharged pricing rule for ERPNext"
 requires-python = ">=3.10"
 readme = "README.md"
 dynamic = ["version"]
@@ -31,6 +31,7 @@ select = [
     "I",
     "UP",
     "B",
+    "RUF",
 ]
 ignore = [
     "B017", # assertRaises(Exception) - should be more specific
@@ -46,6 +47,9 @@ ignore = [
     "F405", # can't detect undefined names from * import
     "F722", # syntax error in forward type annotation
     "W191", # indentation contains tabs
+    "UP030", # Use implicit references for positional format fields (translations)
+    "UP031", # Use format specifiers instead of percent format
+    "UP032", # Use f-string instead of `format` call (translations)
 ]
 typing-modules = ["frappe.types.DF"]
 

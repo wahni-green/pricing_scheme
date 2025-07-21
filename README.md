@@ -1,6 +1,6 @@
 ### Pricing Scheme
 
-Superset of ERPNext\'s Pricing Rule
+Supercharged pricing rule for ERPNext
 
 ### Installation
 
