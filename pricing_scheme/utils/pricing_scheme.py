@@ -1,16 +1,18 @@
-# Copyright (c) 2023, Wahni IT Solutions Pvt. Ltd. and contributors
+# Copyright (c) 2025, Wahni IT Solutions and contributors
 # For license information, please see license.txt
 
 import json
 
 import frappe
 from frappe import _
-from pricing_scheme.utils.pricing_rule import (
+from unitaste.utils.pricing_rule import (
     apply_pricing_rule,
     filter_pricing_rule_based_on_condition,
     filter_pricing_rules_for_qty_amount,
     get_qty_and_rate_for_mixed_conditions,
 )
+
+from india_compliance.gst_india.overrides.transaction import update_taxable_values
 
 
 @frappe.whitelist()
@@ -44,6 +46,7 @@ def get_pricing_rules(doc):
 
 
 def auto_apply_primary_scheme(doc, method=None):
+    recalculate_totals = False
     rules = get_pricing_rules(doc)["rules"]
     for scheme, rule in rules.items():
         if not rule.get("auto_apply_scheme"):
@@ -63,6 +66,7 @@ def auto_apply_primary_scheme(doc, method=None):
             if row.name not in rule.applicable_items:
                 continue
 
+            recalculate_totals = True
             row.pricing_scheme = scheme
             if rule.rate_or_discount == "Rate":
                 rate = rule.item_wise_rates.get(row.item_code) or rule.get("rate")
@@ -84,8 +88,12 @@ def auto_apply_primary_scheme(doc, method=None):
                     )
                 row.rate = row.price_list_rate - row.discount_amount
 
+            row.base_rate = row.rate * doc.conversion_rate
             row.discount_amount = row.price_list_rate - row.rate
             row.discount_percentage = row.discount_amount * 100 / row.price_list_rate
+
+    if recalculate_totals:
+        doc.calculate_taxes_and_totals()
 
 
 @frappe.whitelist()
@@ -162,21 +170,23 @@ def validate_applied_scheme(doc, method=None):
                     )
 
         prule = frappe.get_doc("Pricing Rule", row.pricing_scheme)
-        territories = get_child("Territory", prule.territory)
-        if prule.territory and doc.territory not in territories:
-            frappe.throw(
-                _("Row #{2}: Pricing Rule {0}({1}) is not applicable.").format(
-                    prule.name, prule.title, row.idx
+        if prule.territory:
+            territories = get_child("Territory", prule.territory)
+            if doc.territory not in territories:
+                frappe.throw(
+                    _("Row #{2}: Pricing Rule {0}({1}) is not applicable.").format(
+                        prule.name, prule.title, row.idx
+                    )
                 )
-            )
 
-        customer_groups = get_child("Customer Group", prule.customer_group)
-        if prule.customer_group and doc.customer_group not in customer_groups:
-            frappe.throw(
-                _("Row #{2}: Pricing Rule {0}({1}) is not applicable.").format(
-                    prule.name, prule.title, row.idx
+        if prule.customer_group:
+            customer_groups = get_child("Customer Group", prule.customer_group)
+            if doc.customer_group not in customer_groups:
+                frappe.throw(
+                    _("Row #{2}: Pricing Rule {0}({1}) is not applicable.").format(
+                        prule.name, prule.title, row.idx
+                    )
                 )
-            )
 
         if not filter_pricing_rule_based_on_condition([prule], doc):
             frappe.throw(
@@ -240,3 +250,51 @@ def get_child(doctype, parent):
         )
 
     return parent
+
+
+def cancel_scheme_link(doc, method=None):
+    existing_schemes = []
+    if doc.get("pricing_scheme"):
+        existing_schemes.append(doc.pricing_scheme)
+        doc.db_set("pricing_scheme", None)
+
+    for row in doc.items:
+        if not row.get("pricing_scheme"):
+            continue
+        existing_schemes.append(row.pricing_scheme)
+        row.db_set("pricing_scheme", None)
+
+    if existing_schemes:
+        doc.add_comment(
+            "Comment",
+            _("Pricing Rule(s) {0} removed.").format(", ".join(existing_schemes)),
+        )
+
+
+@frappe.whitelist()
+def remove_all_rules(items):
+    if isinstance(items, str):
+        items = frappe.parse_json(items)
+
+    return_items = []
+    idx = 0
+    for row in items:
+        if row["is_free_item"]:
+            continue
+
+        row["discount_percentage"] = 0
+        row["discount_amount"] = 0
+        row["margin_type"] = ""
+        row["margin_rate_or_amount"] = 0
+        row["rate"] = row["price_list_rate"]
+        row["pricing_scheme"] = ""
+
+        idx += 1
+        row["idx"] = idx
+        return_items.append(row)
+
+    return return_items
+
+
+def update_taxable_value_after_scheme(doc, method=None):
+    update_taxable_values(doc)

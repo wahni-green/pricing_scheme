@@ -1,4 +1,4 @@
-// Copyright(c) 2024, Wahni IT Solutions Pvt.Ltd.and contributors
+// Copyright(c) 2025, Wahni IT Solutions and contributors
 // For license information, please see license.txt
 
 frappe.provide("pricing_scheme");
@@ -240,25 +240,31 @@ pricing_scheme.PricingScheme = class PricingScheme {
         let me = this;
         if (rule.price_or_product_discount != "Product") return 0;
         let selected_details = me.calculate_selected_items(dialog, rule);
-        if (
-            !me.validate_rule_applicable(
-                selected_details[0],
-                selected_details[1],
-                rule
+        selected_details.forEach(det => {
+            if (
+                !me.validate_rule_applicable(
+                    det[0],
+                    det[1],
+                    rule
+                )
             )
-        )
-            return 0;
+                return 0;
+        });
 
+        let free_qty = rule.free_qty;
         if (rule.free_qty_type == "Percentage") {
-            return Math.floor((selected_details[0] * rule.free_qty) / 10) / 10;
+            free_qty = Math.floor((selected_details[0] * rule.free_qty) / 10) / 10;
         }
         if (rule.is_recursive) {
-            return (
+            free_qty =
                 rule.free_qty *
-                (Math.floor((10 * selected_details[0]) / rule.recurse_for) / 10)
-            );
+                (Math.floor((10 * selected_details[0]) / rule.recurse_for) / 10);
         }
-        return rule.free_qty;
+
+        if (rule.qty_based_on == "Stock") {
+            return Math.floor(free_qty);
+        }
+        return free_qty;
     }
 
     calculate_selected_items(dialog, rule) {
@@ -269,14 +275,27 @@ pricing_scheme.PricingScheme = class PricingScheme {
             return [this.frm.doc[qty_field], this.frm.doc.net_total];
         }
         qty_field = rule.qty_based_on == "Stock" ? "stock_qty" : "weight";
-        return [
-            dialog
-                .get_value("scheme_items")
-                .reduce((acc, item) => acc + item[qty_field], 0),
-            dialog
-                .get_value("scheme_items")
-                .reduce((acc, item) => acc + item["amount"], 0),
-        ];
+        if (rule.mixed_conditions) {
+            return [
+                [
+                    dialog
+                        .get_value("scheme_items")
+                        .reduce((acc, item) => acc + item[qty_field], 0),
+                    dialog
+                        .get_value("scheme_items")
+                        .reduce((acc, item) => acc + item["amount"], 0),
+                ]
+            ];
+        }
+
+        let return_data = [];
+        dialog.get_value("scheme_items").forEach(row => {
+            return_data.push(
+                [row[qty_field], row["amount"]]
+            )
+        });
+
+        return return_data;
     }
 
     calculate_selected_free_items(dialog, rule) {
@@ -319,25 +338,29 @@ pricing_scheme.PricingScheme = class PricingScheme {
             me.frm.doc.__in_scheme_apply = true;
             let rule = me.schemes.rules[d.get_value("pricing_rule")];
             let selected_details = me.calculate_selected_items(d, rule);
-            if (
-                !me.validate_rule_applicable(
-                    selected_details[0],
-                    selected_details[1],
-                    rule
-                )
-            ) {
-                frappe.utils.play_sound("error");
-                frappe.show_alert(
-                    {
-                        message: __(
-                            "The selected rule is no longer applicable due to criteria not being met."
-                        ),
-                        indicator: "red",
-                    },
-                    5
-                );
-                return;
-            }
+            selected_details.forEach(det => {
+                if (
+                    !me.validate_rule_applicable(
+                        det[0],
+                        det[1],
+                        rule
+                    )
+                ) {
+                    frappe.utils.play_sound("error");
+                    frappe.show_alert(
+                        {
+                            message: __(
+                                "The selected rule is no longer applicable due to criteria not being met."
+                            ),
+                            indicator: "red",
+                        },
+                        5
+                    );
+                    me.frm.doc.__in_scheme_apply = false;
+                    return;
+                }
+            });
+
             me.form_requires_save = false;
             if (rule.apply_on != "Transaction") {
                 if (rule.price_or_product_discount == "Product") {

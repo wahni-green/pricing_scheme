@@ -1,4 +1,4 @@
-# Copyright (c) 2023, Wahni IT Solutions Pvt. Ltd. and contributors
+# Copyright (c) 2025, Wahni IT Solutions and contributors
 # For license information, please see license.txt
 
 import frappe
@@ -244,6 +244,7 @@ def get_pricing_rule_details(args, pricing_rule):
             "allow_skipping": pricing_rule.allow_skipping,
             "item_group_wise_discounts": item_group_wise_discounts,
             "item_wise_discounts": item_wise_discounts,
+            "mixed_conditions": pricing_rule.mixed_conditions
         }
     )
 
@@ -379,6 +380,7 @@ def get_qty_and_rate_for_mixed_conditions(doc, pr_doc, args):
 
 
 def get_free_item_qty(rule, stock_qty):
+    # doesn't seem to be used anywhere
     if not rule.is_recursive:
         return rule.free_qty
 
